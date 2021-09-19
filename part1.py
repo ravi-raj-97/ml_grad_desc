@@ -1,18 +1,26 @@
 # importing required libraries
 import pandas as pd
-import matplotlib
+import plotly.express as px
+import plotly.graph_objects as go
 import numpy as np
 from sklearn.model_selection import train_test_split
 from random import seed
 import logging
 logging.basicConfig(filename='trial_data.log', filemode='a', level=logging.DEBUG)
-seed(4)
+seed(32)
 
 
 class gradient_descent_package:
+    # Constructor for the package.
+    # Data is loaded and scaled using the min-max scaler logic.
+    # Input:
+    # path - the github URL where the dataset is present.
     def __init__(self, path):
         self.path = path
+        # read data
         self.airfoil_data = pd.read_csv(path, sep='\t', header=None)
+        # column names as described on the original data.
+        # append "BIAS_TERM" at the beginning and set it to 1, just to find the offset value in the linear regression.
         self.all_columns = ['bias_term', 'frequency', 'angle_of_attack', 'chord_length', 'free_stream_velocity',
                             'suction_side_displacement_thickness', 'scaled_sound_pressure_level']
         self.airfoil_data.columns = self.all_columns[1:]
@@ -20,6 +28,7 @@ class gradient_descent_package:
         minimum = self.airfoil_data[self.all_columns[1:]].min()
         maximum = self.airfoil_data[self.all_columns[1:]].max()
         i = 0
+        # scale the columns
         for column in self.airfoil_data.iloc[:, :-1]:
             self.airfoil_data[column] = self.airfoil_data[column].apply(
                 lambda x: ((x - minimum[i])) / (maximum[i] - minimum[i]))
@@ -27,35 +36,96 @@ class gradient_descent_package:
         self.airfoil_data['bias_term'] = [1.0] * len(self.airfoil_data)
         self.airfoil_data = self.airfoil_data[self.all_columns]
 
-    def h(x, theta):
-        return np.matmul(x, theta)
+    # Function to generate the prtedicted value
+    # Input:
+    # x_vals - numpy array containing the values of all features
+    # theta_vect - values of the weights for each variable, along with the offset
+    # Output:
+    # Value of y_pred
+    def hypothesis(x_vals, theta_vect):
+        return np.matmul(x_vals, theta_vect)
 
-    def cost_function(x, y, theta):
-        return ((gradient_descent_package.h(x, theta) - y).T @ (gradient_descent_package.h(x, theta) - y)) / (
-                2 * y.shape[0])
+    # Function to calculate the cost using the gradient descent formula
+    # Input:
+    # x_vals - numpy array containing the values of all features
+    # y_vals - numpy array containing the actual values of y
+    # theta_vect - values of the weights for each variable, along with the offset
+    # Output:
+    # Value of the cost function given by the formula : (1/2m)(sum(h(x.i)-y.i)^2)
+    def cost_function(x_vals, y_vals, theta_vect):
+        return ((gradient_descent_package.hypothesis(x_vals, theta_vect) - y_vals).T @
+                (gradient_descent_package.hypothesis(x_vals, theta_vect) - y_vals)) / (2 * y_vals.shape[0])
 
-    def gradient_descent(x, y, theta, learning_rate, num_epochs):
-        m = x.shape[0]
-        j_all = []
-        for _ in range(num_epochs):
-            h_x = gradient_descent_package.h(x, theta)
-            cost_ = (1 / m) * (x.T @ (h_x - y))
-            theta = theta - (learning_rate * cost_)
-            j_all.append(gradient_descent_package.cost_function(x, y, theta))
-        return theta, j_all
+    # Function to calculate the cost using the gradient descent formula
+    # Input:
+    # x_vals - numpy array containing the values of all features
+    # y_vals - numpy array containing the actual values of y
+    # theta - values of the weights for each variable, along with the offset
+    # learning_rate - the step value for the gradient descent algorithm
+    # num_epochs - the number of iterations to run the algorithm for convergence
+    # min_step - minimum amount of decrease in the cost for the algorithm to continue
+    # checking_epochs - flag to decide if code needs to stop at a less number of iterations
+    # Output:
+    # Number of epochs for which the code ran, final value of the THETA vector and the cost values at each epoch
+    def gradient_descent(x_vals, y_vals, theta, learning_rate, num_epochs, min_step, checking_epochs):
+        m = x_vals.shape[0]
+        historic_j_vals = []
+        for i in range(num_epochs):
+            # find the hypothesis value
+            h_x = gradient_descent_package.hypothesis(x_vals, theta)
+            # find the gradient
+            cost_step = (1 / m) * (x_vals.T @ (h_x - y_vals))
+            # find the total cost
+            curr_cost = gradient_descent_package.cost_function(x_vals, y_vals, theta)
+            historic_j_vals.append(curr_cost)
+            # update theta
+            theta = theta - (learning_rate * cost_step)
+            if checking_epochs:
+                if(i>1):
+                    prev_cost = historic_j_vals[-2]
+                    # check the difference in the cost function
+                    if (prev_cost-curr_cost)<min_step:
+                        logging.info("Number of epochs to saturation:"+(str(i)))
+                        print("Number of epochs to saturation:"+(str(i)))
+                        return i, theta, historic_j_vals
+        return num_epochs, theta, historic_j_vals
 
+    # Function to calculate the MSE Score
+    # Input:
+    # pred_vals - values generated by the model
+    # actual_vals - recorded real values
+    # Output:
+    # MSE Score
     def mse_score(pred_vals, actual_vals):
         mse = np.square(np.subtract(actual_vals, pred_vals)).mean()
         return mse
 
+    # Function to calculate the MAE Score
+    # Input:
+    # pred_vals - values generated by the model
+    # actual_vals - recorded real values
+    # Output:
+    # MAE Score
     def mae_score(pred_vals, actual_vals):
         mae = np.abs(np.subtract(actual_vals, pred_vals)).mean()
         return mae
 
+    # Function to calculate the RMSE Score
+    # Input:
+    # pred_vals - values generated by the model
+    # actual_vals - recorded real values
+    # Output:
+    # RMSE Score
     def rmse_score(pred_vals, actual_vals):
         rmse = np.sqrt(np.square(np.subtract(actual_vals, pred_vals)).mean())
         return rmse
 
+    # Function to calculate the R2 Score
+    # Input:
+    # pred_vals - values generated by the model
+    # actual_vals - recorded real values
+    # Output:
+    # R2 Score
     def r2_score(pred_vals, actual_vals):
         actual_mean = actual_vals.mean()
         rss = np.sum(np.square(np.subtract(actual_vals, pred_vals)))
@@ -63,53 +133,108 @@ class gradient_descent_package:
         r2 = (1 - (rss / tss))
         return r2
 
-    def parameter_identification(x_train, y_train, theta, lr_vals, epoch_vals, x_test, y_test):
+    # Function to calculate the cost using the gradient descent formula
+    # Input:
+    # x_train - numpy array containing the training values of all features
+    # y_train - numpy array containing the actual training values of y
+    # theta - values of the weights for each variable, along with the offset
+    # lr_vals - list of step values for the gradient descent algorithm
+    # epoch_vals - the number of iterations values to run the algorithm for convergence
+    # x_train - numpy array containing the test values of all features
+    # y_train - numpy array containing the actual test values of y
+    # min_step - minimum amount of decrease in the cost for the algorithm to continue
+    # Output:
+    # Dictionary containing the values of scores and training parameters
+    def parameter_identification(x_train, y_train, theta, lr_vals, epoch_vals, x_test, y_test, min_step):
         list_of_results = {'lr': [], 'num_epochs': [], 'theta': [], 'mse': [], 'mae': [], 'rmse': [], 'r2': []}
         for i in range(0, len(lr_vals)):
             for j in range(0, len(epoch_vals)):
-                th,jhist = gradient_descent_package.gradient_descent(x_train, y_train, theta, lr_vals[i], epoch_vals[j])
+                # for each combination find the gradient descent values and corresponding number of epochs and cost
+                # function values
+                num_ep, th, jhist = gradient_descent_package.gradient_descent(x_train, y_train, theta, lr_vals[i],
+                                                                             epoch_vals[j], min_step, 1)
+                # predict y values
                 pred_vals = np.dot(x_test, th)
+                # score the values
                 mse = gradient_descent_package.mse_score(pred_vals, y_test)
                 mae = gradient_descent_package.mae_score(pred_vals, y_test)
                 rmse = gradient_descent_package.rmse_score(pred_vals, y_test)
                 r2 = gradient_descent_package.r2_score(pred_vals, y_test)
+                # append the scores and variables to the dictionary
                 list_of_results['lr'].append(lr_vals[i])
-                list_of_results['num_epochs'].append(epoch_vals[j])
+                list_of_results['num_epochs'].append(num_ep)
                 list_of_results['theta'].append(th)
                 list_of_results['mse'].append(mse)
                 list_of_results['mae'].append(mae)
                 list_of_results['rmse'].append(rmse)
                 list_of_results['r2'].append(r2)
+                logging.info(str(lr_vals[i])+"|"+str(epoch_vals[j])+"|"+str(mse)+"|"+str(mae)+"|"+str(rmse)+"|"+str(r2))
         return list_of_results
 
-
+# Wrapper method to implement everything
 def main():
+    logging.info("Starting the program. Loading and standardization of data.")
     model = gradient_descent_package(
         'https://raw.githubusercontent.com/ravi-raj-97/ml_grad_desc/master/airfoil_self_noise.dat')
+    logging.info("Standardization completed")
     feature_data = model.airfoil_data.iloc[:, :-1]
     target_data = model.airfoil_data.iloc[:, -1]
+    # split the data
     x_train, x_test, y_train, y_test = train_test_split(feature_data, target_data, test_size=0.2)
     x_train = x_train.to_numpy()
     y_train = y_train.to_numpy()
     x_test = x_test.to_numpy()
     y_test = y_test.to_numpy()
+    # initialize a thetha vector
     theta = np.zeros(x_train.shape[1])
+    # range of values for LR and Num_epochs
     lr_vals = [0.1,0.05,0.01,0.005,0.001]
     epoch_vals = [1000,5000,10000,50000,100000]
+    min_step = 0.0001
+    logging.info("Checking for the optimum parameters.")
+    logging.info("lr|num_epochs|mse|mae|rmse|r^2")
     parameter_values = pd.DataFrame(gradient_descent_package.parameter_identification(x_train, y_train, theta, lr_vals,
-                                                                         epoch_vals, x_test, y_test))
-    best_r2 = max(parameter_values['r2'])
-    print(best_r2)
-    sub_data = parameter_values[parameter_values['r2']==best_r2]
+                                                                         epoch_vals, x_test, y_test, min_step))
+    # plotting the scores against the number of iterations, color coded with the learning rate
+    fig = px.line(parameter_values,x="num_epochs", y="rmse", color='lr')
+    fig.write_image("rmse.jpg")
+    fig = px.line(parameter_values, x="num_epochs", y="mse", color='lr')
+    fig.write_image("mse.jpg")
+    fig = px.line(parameter_values, x="num_epochs", y="mae", color='lr')
+    fig.write_image("mae.jpg")
+    fig = px.line(parameter_values, x="num_epochs", y="r2", color='lr')
+    fig.write_image("r2.jpg")
+    # pick the parameters
+    parameter_values.to_excel('parameter_iterations.xlsx', index=False)
+    highest_r2 = max(parameter_values['r2'])
+    sub_data = parameter_values[parameter_values['r2']==highest_r2]
     selected_num_epochs = max(sub_data['num_epochs'])
     selected_lr = max(sub_data['lr'])
-    print(selected_num_epochs, selected_lr)
-    th, jall = gradient_descent_package.gradient_descent(x_train, y_train, theta, selected_lr, selected_num_epochs)
+    print(highest_r2)
+    print("Number of epochs:"+str(selected_num_epochs))
+    print("Learning Rate:"+str(selected_lr))
+    logging.info("Starting gradient descent.")
+    check_epochs = 0
+    num_ep, th, jall = gradient_descent_package.gradient_descent(x_train, y_train, theta, selected_lr, selected_num_epochs,
+                                                         min_step, check_epochs)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=list(range(1, len(jall))), y=jall,
+                             mode='lines',
+                             name='J Value'))
+    fig.write_image("j_hist.jpg")
+    logging.info("Gradient Descent completed. Starting predicitions.")
     pred_vals = np.dot(x_test, th)
+    # display scoring metrics
+    logging.info("Predictions ready. Calculating scoring metrics.")
+    logging.info("MSE:"+str(gradient_descent_package.mse_score(pred_vals, y_test)))
     print(gradient_descent_package.mse_score(pred_vals, y_test))
+    logging.info("MAE:" + str(gradient_descent_package.mae_score(pred_vals, y_test)))
     print(gradient_descent_package.mae_score(pred_vals, y_test))
+    logging.info("RMSE:" + str(gradient_descent_package.rmse_score(pred_vals, y_test)))
     print(gradient_descent_package.rmse_score(pred_vals, y_test))
+    logging.info("R2:" + str(gradient_descent_package.r2_score(pred_vals, y_test)))
     print(gradient_descent_package.r2_score(pred_vals, y_test))
+    logging.info("Completed.")
     return
 
 
