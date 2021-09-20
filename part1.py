@@ -4,7 +4,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
-from sklearn.model_selection import train_test_split
 from random import seed
 import logging
 logging.basicConfig(filename='trial_data.log', filemode='a', level=logging.DEBUG)
@@ -178,10 +177,13 @@ def main():
     model = gradient_descent_package(
         'https://raw.githubusercontent.com/ravi-raj-97/ml_grad_desc/master/airfoil_self_noise.dat')
     logging.info("Standardization completed")
-    feature_data = model.airfoil_data.iloc[:, :-1]
-    target_data = model.airfoil_data.iloc[:, -1]
     # split the data
-    x_train, x_test, y_train, y_test = train_test_split(feature_data, target_data, test_size=0.2)
+    train = model.airfoil_data.sample(frac=0.8, random_state=200)
+    test = model.airfoil_data.drop(train.index)
+    x_train = train.iloc[:, :-1]
+    y_train = train.iloc[:, -1]
+    x_test = test.iloc[:, :-1]
+    y_test = test.iloc[:, -1]
     x_train = x_train.to_numpy()
     y_train = y_train.to_numpy()
     x_test = x_test.to_numpy()
