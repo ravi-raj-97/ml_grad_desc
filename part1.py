@@ -216,7 +216,9 @@ def main():
     selected_lr = max(sub_data['lr'])
     print(highest_r2)
     print("Number of epochs:"+str(selected_num_epochs))
+    logging.info("Selected number of epochs:"+str(selected_num_epochs))
     print("Learning Rate:"+str(selected_lr))
+    logging.info("Selected Learning Rate:"+str(selected_lr))
     logging.info("Starting gradient descent.")
     check_epochs = 0
     num_ep, th, jall = gradient_descent_package.gradient_descent(x_train, y_train, theta, selected_lr, selected_num_epochs,

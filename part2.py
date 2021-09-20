@@ -18,13 +18,14 @@ class GradientDecent:
     def __init__(self, path):
         self.path = path
         self.airfoil_data = pd.read_csv(path, sep='\t',header = None)
+        # Columns of data as per the website
         self.columns = ['Frequency','angle_of_attack','chord_length','free_stream_velocity','suction_side_displacement_thickness','scaled_sound_pressure_level']
         self.airfoil_data.columns = self.columns
+        # Scaling data using Min-Max scaler
         min_max_scaler = MinMaxScaler()
         data_normalized = min_max_scaler.fit_transform(self.airfoil_data.iloc[:,:-1])
         self.scaled_df = pd.DataFrame(data_normalized , columns= self.columns[:-1])
         self.scaled_df['scaled_sound_pressure_level'] = self.airfoil_data.iloc[:,-1:]
-
 
 # X is dataframe containing all features 
 # Y is dataframe containing target variable
@@ -35,6 +36,7 @@ class GradientDecent:
         X = self.scaled_df[['Frequency','angle_of_attack','chord_length','free_stream_velocity','suction_side_displacement_thickness']]
         Y = self.scaled_df['scaled_sound_pressure_level']
         X_train, X_test, Y_train, Y_test = train_test_split(X,Y, test_size = 0.2, random_state=5)
+        # Building model using SGDRegressor to fit data.
         model = SGDRegressor()
         model.fit(X_train, Y_train)
         y_test_predict = model.predict(X_test)
