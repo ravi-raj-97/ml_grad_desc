@@ -1,5 +1,3 @@
-# Code by Ravi Raj Chakravadhanula(RXC190056) and Rajendra Sreevatsa Kalakodimi(RXK210013)
-# ML Assignment 1 - Gradient Descent
 # Importing Required Libraries
 import numpy as np
 import pandas as pd
