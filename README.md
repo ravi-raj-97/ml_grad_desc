@@ -1,8 +1,5 @@
-# ML Assignment - 1
-## Gradient Descent Algorithm
-### Code by Ravi Raj Chakravadhanula and Rajendra Sreevatsa Kalakodimi
 
-The aim of the project is to code for the Gradient Descent Algorithm without the usage of inbuilt packages.
+# Gradient Descent Algorithm
 
 ### Requirements and running the code:
 The required packages to run the code on the local are:
